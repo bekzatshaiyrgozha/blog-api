@@ -1,2 +1,8 @@
--r prod.txt
-pytest==9.0.1
+Django==5.0
+djangorestframework==3.16.1
+djangorestframework-simplejwt==5.5.1
+python-decouple==3.8
+django-redis==5.4.0
+redis==5.0.8
+django-ratelimit==4.1.0
+Pillow==10.0.0

@@ -1,22 +1,29 @@
-"""
-URL configuration for blog_api project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from rest_framework.routers import DefaultRouter
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from apps.users.views import RegisterViewSet
+from apps.blog.views import PostViewSet
+
+router = DefaultRouter()
+router.register("auth/register", RegisterViewSet, basename="register")
+router.register("posts", PostViewSet, basename="posts")
+
+class TokenObtainPairRateLimitedView(TokenObtainPairView):
+    @method_decorator(ratelimit(key="ip", rate="10/m", method="POST", block=False))
+    def post(self, request, *args, **kwargs):
+        if getattr(request, "limited", False):
+            return Response({"detail": "Too many requests. Try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        return super().post(request, *args, **kwargs)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
+    path("api/", include(router.urls)),
+    path("api/auth/token/", TokenObtainPairRateLimitedView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
