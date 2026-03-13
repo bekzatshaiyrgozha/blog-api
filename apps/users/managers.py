@@ -1,10 +1,8 @@
 from django.contrib.auth.base_user import BaseUserManager
 
-from .models import User
-
 
 class UserManager(BaseUserManager):
-    def create_user(self, email: str, password: str | None = None, **extra_fields) -> User:
+    def create_user(self, email: str, password: str | None = None, **extra_fields) -> "User":
         if not email:
             raise ValueError("Email is required")
         email = self.normalize_email(email).lower()
@@ -13,7 +11,7 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email: str, password: str | None = None, **extra_fields) -> User:
+    def create_superuser(self, email: str, password: str | None = None, **extra_fields) -> "User":
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
