@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 from .managers import UserManager
 
@@ -23,3 +25,17 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return self.email
+    
+    language = models.CharField(
+        max_length=5,
+        choices=[(c, c) for c in getattr(settings, "SUPPORTED_LANGUAGES", ["en"])],
+        default="en",
+        verbose_name=_("Language"),
+        help_text=_("Preferred language for the user interface"),
+    )
+    timezone = models.CharField(
+        max_length=64,
+        default="UTC",
+        verbose_name=_("Timezone"),
+        help_text=_("Preferred timezone for the user"),
+    )

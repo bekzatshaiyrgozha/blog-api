@@ -1,7 +1,7 @@
 import os
 
 from settings.conf import * 
-
+from django.utils.translation import gettext_lazy as _
 
 
 
@@ -12,6 +12,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_URLCONF = 'settings.urls'
 WSGI_APPLICATION = 'settings.wsgi.application'
 ASGI_APPLICATIONS = 'settings.asgi.applications'
+
+
+LANGUAGE_CODE = 'en'
+LANGUAGES = [
+    ('en', _('English')),
+    ('ru', _('Russian')),
+    ('kz', _('Kazakh')),
+]
+
+SUPPORTED_LANGUAGES = [code for code, _ in LANGUAGES]
+LOCALE_PATHS = [os.path.join(BASE_DIR, 'locale')]
 
 '''
 Apps
@@ -30,6 +41,7 @@ DJANGO_AND_THIRD_PARTY_APPS = [
 PROJECT_APPS = [
     "apps.users",
     "apps.blog",
+    "apps.core",
     
 ]
 
@@ -54,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'apps.core.middleware.UserLanguageTimezoneMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

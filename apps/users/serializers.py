@@ -1,6 +1,13 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import serializers
+from django.utils.translation import gettext_lazy as _
+from .models import User
+from .validators import validate_timezone
+from django.conf import settings
+
+
 
 User = get_user_model()
 
@@ -28,3 +35,19 @@ class RegisterSerializer(serializers.ModelSerializer):
     def get_tokens(self, obj):
         refresh = RefreshToken.for_user(obj)
         return {"refresh": str(refresh), "access": str(refresh.access_token)}
+    
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "email", "first_name", "last_name", "language", "timezone", "avatar", "date_joined"]
+        read_only_fields = ["id", "email", "date_joined"]
+
+class LanguageSerializer(serializers.Serializer):
+    language = serializers.ChoiceField(choices=[(c, c) for c in getattr(settings, "SUPPORTED_LANGUAGES", ["en"])])
+
+class TimezoneSerializer(serializers.Serializer):
+    timezone = serializers.CharField(max_length=64)
+
+    def validate_timezone(self, value):
+        validate_timezone(value)
+        return value
