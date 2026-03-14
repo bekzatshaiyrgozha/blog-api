@@ -23,7 +23,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
+            from django.utils.translation import gettext_lazy as _
+            raise serializers.ValidationError({"password_confirm": _("Passwords do not match")})
         return attrs
 
     def create(self, validated_data):

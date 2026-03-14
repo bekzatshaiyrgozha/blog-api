@@ -9,6 +9,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.users.views import RegisterViewSet
 from apps.blog.views import PostViewSet
+from apps.blog.views import stats as stats_view
+try:
+    from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+except Exception:
+    SpectacularAPIView = SpectacularRedocView = SpectacularSwaggerView = None
 
 router = DefaultRouter()
 router.register("auth/register", RegisterViewSet, basename="register")
@@ -24,6 +29,18 @@ class TokenObtainPairRateLimitedView(TokenObtainPairView):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
+    # OpenAPI schema and docs
+    # OpenAPI schema and docs (conditionally available if drf-spectacular is installed)
+    *(
+        [
+            path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+            path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+            path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+        ]
+        if SpectacularAPIView
+        else []
+    ),
     path("api/auth/token/", TokenObtainPairRateLimitedView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/stats/", stats_view, name="api-stats"),
 ]

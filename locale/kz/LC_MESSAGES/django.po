@@ -1,0 +1,40 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: blog_api\n"
+"POT-Creation-Date: 2026-03-15 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Email is required"
+msgstr "Электрондық пошта қажет"
+
+msgid "Passwords do not match"
+msgstr "Құпиясөздер сәйкес келмейді"
+
+msgid "Language"
+msgstr "Тіл"
+
+msgid "Timezone"
+msgstr "Уақыт аймағы"
+
+msgid "Preferred language for the user interface"
+msgstr "Пайдаланушы интерфейсінің қалаулы тілі"
+
+msgid "Preferred timezone for the user"
+msgstr "Пайдаланушының қалаулы уақыт аймағы"
+
+msgid "Too many requests. Try again later."
+msgstr "Сұраулар тым көп. Кейінірек қайталап көріңіз."
+
+msgid "Invalid timezone identifier."
+msgstr "Уақыт аймағының идентификаторы жарамсыз."
+
+msgid "Listening to comments channel (async)..."
+msgstr "Пікірлер арнасын тыңдау (асинхронды)..."
+
+msgid "Welcome to Blog API"
+msgstr "Blog API-ға қош келдіңіз"
+
+msgid "Your account has been created."
+msgstr "Сіздің аккаунтыңыз құрылды."

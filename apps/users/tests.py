@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from django.urls import reverse
@@ -23,3 +23,23 @@ class UserLanguageTimezoneTests(TestCase):
         url = reverse("update-timezone")
         resp = self.client.patch(url, {"timezone": "No/SuchZone"}, format="json")
         self.assertEqual(resp.status_code, 400)
+
+    def test_registration_sends_welcome_email(self):
+        from unittest.mock import patch
+        from django.urls import reverse
+
+        data = {
+            "email": "new@example.com",
+            "first_name": "New",
+            "last_name": "User",
+            "password": "pass1234",
+            "password_confirm": "pass1234",
+        }
+
+        with patch("apps.users.views.send_mail") as mock_send:
+            client = Client()
+            resp = client.post(reverse("register-list"), data, content_type="application/json")
+            # registration endpoint should accept creation (201)
+            self.assertIn(resp.status_code, (200, 201))
+            # send_mail should be called
+            self.assertTrue(mock_send.called)

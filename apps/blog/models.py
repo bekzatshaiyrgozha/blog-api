@@ -8,7 +8,10 @@ class PostStatus(models.TextChoices):
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    # Keep `name` as the English name for backward compatibility
+    name = models.CharField(max_length=100, unique=True, verbose_name="Name (en)")
+    name_ru = models.CharField(max_length=100, null=True, blank=True, verbose_name="Name (ru)")
+    name_kz = models.CharField(max_length=100, null=True, blank=True, verbose_name="Name (kz)")
     slug = models.SlugField(unique=True)
 
     def __str__(self) -> str:

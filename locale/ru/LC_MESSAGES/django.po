@@ -1,0 +1,40 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: blog_api\n"
+"POT-Creation-Date: 2026-03-15 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Email is required"
+msgstr "Требуется адрес электронной почты"
+
+msgid "Passwords do not match"
+msgstr "Пароли не совпадают"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Timezone"
+msgstr "Часовой пояс"
+
+msgid "Preferred language for the user interface"
+msgstr "Предпочтительный язык интерфейса пользователя"
+
+msgid "Preferred timezone for the user"
+msgstr "Предпочтительный часовой пояс пользователя"
+
+msgid "Too many requests. Try again later."
+msgstr "Слишком много запросов. Попробуйте позднее."
+
+msgid "Invalid timezone identifier."
+msgstr "Неверный идентификатор часового пояса."
+
+msgid "Listening to comments channel (async)..."
+msgstr "Прослушивание канала комментариев (async)..."
+
+msgid "Welcome to Blog API"
+msgstr "Добро пожаловать в Blog API"
+
+msgid "Your account has been created."
+msgstr "Ваша учётная запись создана."

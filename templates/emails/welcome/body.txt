@@ -1,0 +1,6 @@
+Hi {{ user.first_name }},
+
+Welcome to Blog API. Your account has been created.
+
+Best regards,
+Blog Team

@@ -1,3 +1,5 @@
+# Ignore compiled translation files
+*.mo
 logs/
 
 
