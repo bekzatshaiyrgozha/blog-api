@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
+from apps.blog.views import stats as stats_view, posts_stream
 from apps.users.views import RegisterViewSet
 from apps.blog.views import PostViewSet
 from apps.blog.views import stats as stats_view
@@ -29,6 +29,7 @@ class TokenObtainPairRateLimitedView(TokenObtainPairView):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
+    path("api/", include("apps.notifications.urls")),
     # OpenAPI schema and docs
     # OpenAPI schema and docs (conditionally available if drf-spectacular is installed)
     *(
@@ -43,4 +44,5 @@ urlpatterns = [
     path("api/auth/token/", TokenObtainPairRateLimitedView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/stats/", stats_view, name="api-stats"),
+    path("api/posts/stream/", posts_stream, name="posts-stream"),
 ]

@@ -1,32 +1,30 @@
+import asyncio
 import json
 import logging
-from typing import Any
 
-from django.db.models import QuerySet
-
+import httpx
 import redis
+import redis.asyncio as aioredis
+from django.conf import settings
 from django.core.cache import cache
-from django_redis import get_redis_connection
+from django.db.models import QuerySet
+from django.http import StreamingHttpResponse
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Comment, Post, PostStatus
 from .permissions import IsOwnerOrReadOnly
 from .serializers import CommentSerializer, PostSerializer
-from rest_framework.decorators import api_view
-from rest_framework.views import APIView
-from rest_framework.response import Response
-import httpx
-import asyncio
 
 logger = logging.getLogger("blog")
 
 CACHE_KEY_POSTS_LIST_PREFIX = "posts_list"
 CACHE_TTL_SECONDS = 60
+POST_PUBLISHED_CHANNEL = "posts_published"
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -48,7 +46,6 @@ class PostViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), IsOwnerOrReadOnly()]
 
     def list(self, request, *args, **kwargs):
-        # Cache key is language- and page-aware so different languages get separate cached responses
         lang = getattr(request, "LANGUAGE_CODE", "en")
         page = request.query_params.get("page", "1")
         cache_key = f"{CACHE_KEY_POSTS_LIST_PREFIX}:lang={lang}:page={page}"
@@ -79,35 +76,34 @@ class PostViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         logger.info("Post creation by user: %s", self.request.user.id)
-        serializer.save(author=self.request.user)
-        # Invalidate posts list cache for all languages and pages.
-        try:
-            conn = get_redis_connection("default")
-            for key in conn.scan_iter(f"{CACHE_KEY_POSTS_LIST_PREFIX}:lang=*"):
-                conn.delete(key)
-        except Exception:
-            if hasattr(cache, "delete_pattern"):
-                cache.delete_pattern(f"{CACHE_KEY_POSTS_LIST_PREFIX}:lang=*")
-            else:
-                # best-effort fallback: delete known prefix keys if cached locally
-                cache.delete(f"{CACHE_KEY_POSTS_LIST_PREFIX}")
+        post = serializer.save(author=self.request.user)
+
+        from apps.blog.tasks import invalidate_posts_cache
+
+        invalidate_posts_cache.delay()
+
+        if post.status == PostStatus.PUBLISHED:
+            publish_post_published_event(post)
 
     def perform_update(self, serializer):
         logger.info("Post update by user: %s", self.request.user.id)
-        serializer.save()
-        try:
-            conn = get_redis_connection("default")
-            for key in conn.scan_iter(f"{CACHE_KEY_POSTS_LIST_PREFIX}:lang=*"):
-                conn.delete(key)
-        except Exception:
-            if hasattr(cache, "delete_pattern"):
-                cache.delete_pattern(f"{CACHE_KEY_POSTS_LIST_PREFIX}:lang=*")
-            else:
-                cache.delete(f"{CACHE_KEY_POSTS_LIST_PREFIX}")
+        old_status = serializer.instance.status
+        post = serializer.save()
+
+        from apps.blog.tasks import invalidate_posts_cache
+
+        invalidate_posts_cache.delay()
+
+        if post.status == PostStatus.PUBLISHED and old_status != PostStatus.PUBLISHED:
+            publish_post_published_event(post)
 
     def perform_destroy(self, instance):
         logger.info("Post delete by user: %s", self.request.user.id)
         instance.delete()
+
+        from apps.blog.tasks import invalidate_posts_cache
+
+        invalidate_posts_cache.delay()
 
     @action(detail=True, methods=["get", "post"], url_path="comments")
     def comments(self, request, slug=None):
@@ -118,35 +114,70 @@ class PostViewSet(viewsets.ModelViewSet):
 
         serializer = CommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(post=post, author=request.user)
+        comment = serializer.save(post=post, author=request.user)
         logger.info("Comment created by user: %s", request.user.id)
 
-# Pub/Sub: publish event to Redis
-        # Pub/Sub: publish event to Redis
-        try:
-            r = redis.Redis(host="127.0.0.1", port=6379, db=0, decode_responses=True)
-            event_data = {
-                "post_slug": post.slug,
-                "author": request.user.email,
-                "body": serializer.data.get("body"),
-                }
-            r.publish("comments", json.dumps(event_data))
-        except Exception as e:
-            logger.exception("Error publishing to Redis: %s", e)
+        from apps.notifications.tasks import process_new_comment
 
-        return Response(serializer.data, status=201)
+        process_new_comment.delay(comment.id)
+
+        return Response(CommentSerializer(comment).data, status=201)
+
+
+def publish_post_published_event(post):
+    payload = {
+        "post_id": post.id,
+        "title": post.title,
+        "slug": post.slug,
+        "author": {
+            "id": post.author_id,
+            "email": post.author.email,
+        },
+        "published_at": post.updated_at.isoformat() if post.updated_at else None,
+    }
+    try:
+        r = redis.Redis.from_url(settings.BLOG_REDIS_URL, decode_responses=True)
+        r.publish(POST_PUBLISHED_CHANNEL, json.dumps(payload, ensure_ascii=False))
+    except Exception as e:
+        logger.exception("Failed to publish SSE event: %s", e)
+
+
+async def _sse_post_stream():
+    client = aioredis.from_url(settings.BLOG_REDIS_URL, decode_responses=True)
+    pubsub = client.pubsub()
+    await pubsub.subscribe(POST_PUBLISHED_CHANNEL)
+
+    try:
+        yield ": connected\n\n"
+        async for message in pubsub.listen():
+            if message.get("type") != "message":
+                continue
+            data = message.get("data")
+            yield f"data: {data}\n\n"
+    finally:
+        await pubsub.unsubscribe(POST_PUBLISHED_CHANNEL)
+        await pubsub.close()
+        await client.close()
 
 
 @api_view(["GET"])
-async def stats(request):
-    """Async endpoint that fetches exchange rates and Almaty time concurrently.
+@permission_classes([AllowAny])
+async def posts_stream(request):
+    # SSE is a good fit for one-way server->client updates (simple, lightweight).
+    # For bidirectional communication (client<->server) or complex real-time features,
+    # WebSockets are a better choice.
+    response = StreamingHttpResponse(
+        streaming_content=_sse_post_stream(),
+        content_type="text/event-stream",
+    )
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
-    Returns blog counts from local DB and data from two external APIs.
-    """
-    # Async is used here because the view performs two independent network I/O operations
-    # (external HTTP requests). Using asyncio.gather with httpx.AsyncClient allows both
-    # requests to run concurrently so total latency approximates the slower call, not the sum.
-    # local counts (synchronous ORM is fine here; it's fast)
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+async def stats(request):
     total_posts = Post.objects.count()
     total_comments = Comment.objects.count()
     from django.contrib.auth import get_user_model

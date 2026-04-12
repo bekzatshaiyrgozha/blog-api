@@ -11,7 +11,7 @@ Path configuration
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_URLCONF = 'settings.urls'
 WSGI_APPLICATION = 'settings.wsgi.application'
-ASGI_APPLICATIONS = 'settings.asgi.applications'
+ASGI_APPLICATION = 'settings.asgi.application'
 
 
 LANGUAGE_CODE = 'en'
@@ -36,12 +36,14 @@ DJANGO_AND_THIRD_PARTY_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "rest_framework",
+     'channels',
 ]
 
 PROJECT_APPS = [
     "apps.users",
     "apps.blog",
     "apps.core",
+    "apps.notifications",
     
 ]
 
@@ -205,3 +207,24 @@ CACHES = {
         },
     }
 }
+BLOG_REDIS_URL = config(
+    "BLOG_REDIS_URL", default="redis://127.0.0.1:6379/0",
+      cast=str
+    )
+
+CHANNEL_LAYERS = {
+    "default": {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [BLOG_REDIS_URL]}}
+    }
+
+# Celery configuration
+CELERY_BROKER_URL = config(
+    "BLOG_CELERY_BROKER_URL",
+    default="redis://127.0.0.1:6379/1",
+    cast=str,
+)
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_ENABLE_UTC = True

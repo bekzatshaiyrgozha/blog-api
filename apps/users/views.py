@@ -57,19 +57,11 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         logger.info("User registered: %s", response.data.get("email"))
 
         # Send welcome email in the user's chosen language
-        try:
-            user_email = response.data.get("email")
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user = User.objects.filter(email=user_email).first()
-            if user:
-                user_lang = getattr(user, "language", settings.LANGUAGE_CODE)
-                # render templates in user's language regardless of current request language
-                with translation.override(user_lang):
-                    subject = render_to_string("emails/welcome/subject.txt", {"user": user}).strip()
-                    body = render_to_string("emails/welcome/body.txt", {"user": user})
-                send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
-        except Exception:
-            logger.exception("Failed to send welcome email")
+        
+        # Dispatch welcome email task
+        user_id = response.data.get("id")
+        if user_id:
+            from apps.users.tasks import send_welcome_email
+            send_welcome_email.delay(user_id)
 
         return response

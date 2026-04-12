@@ -1,0 +1,80 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=settings.env.local
+      - BLOG_SQLITE_PATH=/app/data/db.sqlite3
+    env_file:
+      - settings/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - db_data:/app/data
+    command: daphne -b 0.0.0.0 -p 8000 settings.asgi:application
+
+  celery_worker:
+    build: .
+    environment:
+      - DJANGO_SETTINGS_MODULE=settings.env.local
+      - BLOG_SQLITE_PATH=/app/data/db.sqlite3
+    env_file:
+      - settings/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - db_data:/app/data
+    command: celery -A settings worker -l info
+
+  celery_beat:
+    build: .
+    environment:
+      - DJANGO_SETTINGS_MODULE=settings.env.local
+      - BLOG_SQLITE_PATH=/app/data/db.sqlite3
+    env_file:
+      - settings/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - db_data:/app/data
+    command: celery -A settings beat -l info
+
+  flower:
+    build: .
+    ports:
+      - "5555:5555"
+    environment:
+      - DJANGO_SETTINGS_MODULE=settings.env.local
+      - BLOG_SQLITE_PATH=/app/data/db.sqlite3
+    env_file:
+      - settings/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - db_data:/app/data
+    command: celery -A settings flower --basic_auth=${BLOG_FLOWER_USER:-admin}:${BLOG_FLOWER_PASSWORD:-changeme}
+
+volumes:
+  redis_data:
+  db_data:

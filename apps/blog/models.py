@@ -5,6 +5,7 @@ from django.db import models
 class PostStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     PUBLISHED = "published", "Published"
+    SCHEDULED = "scheduled", "Scheduled"
 
 
 class Category(models.Model):
@@ -34,6 +35,7 @@ class Post(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name="posts")
     tags = models.ManyToManyField(Tag, blank=True, related_name="posts")
     status = models.CharField(max_length=20, choices=PostStatus.choices, default=PostStatus.DRAFT)
+    publish_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
