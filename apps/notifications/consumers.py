@@ -64,3 +64,23 @@ class CommentConsumer(AsyncWebsocketConsumer):
         # event["data"] ожидается в формате:
         # {comment_id, author:{id,email}, body, created_at}
         await self.send(text_data=json.dumps(event["data"], ensure_ascii=False))
+
+
+class DebugConsumer(AsyncWebsocketConsumer):
+    """Простой debug-консьюмер для проверки проксирования и апгрейда WS.
+
+    При подключении отправляет приветствие и эхо для тестов.
+    Не используется в продакшн, только для локальной проверки HW4.
+    """
+    async def connect(self):
+        await self.accept()
+        await self.send(text_data=json.dumps({"msg": "debug connected"}, ensure_ascii=False))
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if text_data:
+            await self.send(text_data=json.dumps({"echo": text_data}, ensure_ascii=False))
+        elif bytes_data:
+            await self.send(bytes_data=bytes_data)
+
+    async def disconnect(self, close_code):
+        return
